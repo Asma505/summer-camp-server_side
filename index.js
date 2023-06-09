@@ -33,10 +33,14 @@ async function run() {
 
     const classCollection = client.db("class").collection("details");
 
-    
+
 
     app.get('/details', async(req, res)=>{
-        const result = await classCollection.find().toArray();
+        const query = {};
+        const options = {
+            sort: {"num_students": -1}
+        }
+        const result = await classCollection.find(query, options).toArray();
         res.send(result); 
     })
 

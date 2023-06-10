@@ -33,9 +33,17 @@ async function run() {
 
     const classCollection = client.db("class").collection("details");
     const courseCollection = client.db("class").collection("course");
+    const usersCollection = client.db("class").collection("users");
 
 
+    // users api
+    app.post('/users', async(req, res)=>{
+      const user = req.body;
+      const result = await usersCollection.insertOne(user);
+      res.send(result)
+    })
 
+    // details data api
     app.get('/details', async(req, res)=>{
         const query = {};
         const options = {

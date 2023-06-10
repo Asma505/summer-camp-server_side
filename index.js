@@ -32,6 +32,7 @@ async function run() {
 
 
     const classCollection = client.db("class").collection("details");
+    const courseCollection = client.db("class").collection("course");
 
 
 
@@ -42,6 +43,16 @@ async function run() {
         }
         const result = await classCollection.find(query, options).toArray();
         res.send(result); 
+    })
+
+
+    // selected course api:
+
+    app.post('/course', async(req, res)=>{
+      const selected = req.body;
+      console.log(selected);
+      const result = await courseCollection.insertOne(selected);
+      res.send(result);
     })
 
 

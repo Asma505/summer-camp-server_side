@@ -14,14 +14,14 @@ app.use(express.json());
 
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
-  if(!authorization){
-    return res.status(401).send({error: true, message: 'unauthorized access'});
+  if (!authorization) {
+    return res.status(401).send({ error: true, message: 'unauthorized access' });
   }
 
   const token = authorization.split(' ')[1];
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
-    if(err){
-      return res.status(401).send({error: true, message: 'unauthorized access'})
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ error: true, message: 'unauthorized access' })
     }
     req.decoded = decoded;
     next();
@@ -51,50 +51,61 @@ async function run() {
     const usersCollection = client.db("class").collection("users");
 
 
-    app.post('/jwt', (req, res)=>{
+    app.post('/jwt', (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
 
-      res.send({token});
+      res.send({ token });
     })
+
+
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== 'Admin') {
+        return res.status(403).send({ error: true, message: 'forbidden' })
+      }
+      next();
+    }
 
 
     // users api
 
 
-    app.get('/users', async(req, res)=>{
+    app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     })
 
 
-    app.post('/users', async(req, res)=>{
+    app.post('/users', async (req, res) => {
       const user = req.body;
-      const query = {email: user.email};
+      const query = { email: user.email };
       const existingUser = await usersCollection.findOne(query);
-      if(existingUser){
-        return res.send({message: 'existing user'})
+      if (existingUser) {
+        return res.send({ message: 'existing user' })
       }
       const result = await usersCollection.insertOne(user);
       res.send(result)
     })
 
-    app.get('/users/admin/:email', verifyJWT, async(req, res)=>{
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
-      if(req.decoded.email !== email){
-        res.send({admin: false})
+      if (req.decoded.email !== email) {
+        res.send({ admin: false })
       }
 
-      const query = {email: email};
+      const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = {admin: user?.role === 'Admin'}
+      const result = { admin: user?.role === 'Admin' }
       res.send(result);
     })
 
-    app.patch('/users/admin/:id', async(req, res)=>{
+    app.patch('/users/admin/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           role: "Admin"
@@ -104,22 +115,22 @@ async function run() {
       res.send(result);
     })
 
-    app.get('/users/instructor/:email', verifyJWT, async(req, res)=>{
+    app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
-      if(req.decoded.email !== email){
-        res.send({instructor: false})
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false })
       }
 
-      const query = {email: email};
+      const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = {instructor: user?.role === 'Instructor'}
+      const result = { instructor: user?.role === 'Instructor' }
       res.send(result);
     })
-    
-    app.patch('/users/instructor/:id', async(req, res)=>{
+
+    app.patch('/users/instructor/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           role: "Instructor"
@@ -130,18 +141,18 @@ async function run() {
     })
 
     // details data api
-    app.get('/details', async(req, res)=>{
-        const query = {};
-        const options = {
-            sort: {"num_students": -1}
-        }
-        const result = await classCollection.find(query, options).toArray();
-        res.send(result); 
+    app.get('/details', async (req, res) => {
+      const query = {};
+      const options = {
+        sort: { "num_students": -1 }
+      }
+      const result = await classCollection.find(query, options).toArray();
+      res.send(result);
     })
 
-    app.patch('/details/approved/:id', async(req, res)=>{
+    app.patch('/details/approved/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           status: "approved"
@@ -150,10 +161,10 @@ async function run() {
       const result = await classCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
-    
-    app.patch('/details/denied/:id', async(req, res)=>{
+
+    app.patch('/details/denied/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           status: "denied"
@@ -166,30 +177,35 @@ async function run() {
 
     // selected course api:
 
-    app.get('/course', verifyJWT, async(req, res)=>{
-      const email = req.query.email;      
-      if(!email){
+    app.get('/course', verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      if (!email) {
         res.send([]);
       }
 
       const decodedEmail = req.decoded.email;
-      if(email !== decodedEmail){
-        return res.status(403).send({error: true, message: 'forbidden access'})
+      if (email !== decodedEmail) {
+        return res.status(403).send({ error: true, message: 'forbidden access' })
       }
-      
-      const query = {email: email};
+
+      const query = { email: email };
       const result = await courseCollection.find(query).toArray();
       res.send(result);
     })
 
-    app.post('/course', async(req, res)=>{
+    app.post('/course', async (req, res) => {
       const selected = req.body;
       console.log(selected);
       const result = await courseCollection.insertOne(selected);
       res.send(result);
     })
 
-
+    app.delete('/course/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await courseCollection.deleteOne(query);
+      res.send(result);
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -204,9 +220,9 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('summer camp server is running')
+  res.send('summer camp server is running')
 })
 
 app.listen(port, () => {
-    console.log(`summer camp server is running on port ${port}`)
+  console.log(`summer camp server is running on port ${port}`)
 })

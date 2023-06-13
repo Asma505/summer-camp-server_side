@@ -50,6 +50,7 @@ async function run() {
     const classCollection = client.db("class").collection("details");
     const courseCollection = client.db("class").collection("course");
     const usersCollection = client.db("class").collection("users");
+    const paymentCollection = client.db("class").collection("payments");
 
 
     app.post('/jwt', (req, res) => {
@@ -150,6 +151,12 @@ async function run() {
       const result = await classCollection.find(query, options).toArray();
       res.send(result);
     })
+    
+    app.get('/details/:id', async (req, res) => { 
+      const id = req.params.id;     
+      const result = await classCollection.find({_id: new ObjectId(id)}).toArray();
+      res.send(result);
+    })
 
     app.patch('/details/approved/:id', async (req, res) => {
       const id = req.params.id;
@@ -181,7 +188,7 @@ async function run() {
     app.get('/course', verifyJWT, async (req, res) => {
       const email = req.query.email;
       if (!email) {
-        res.send([]);
+        return res.send([]);
       }
 
       const decodedEmail = req.decoded.email;
@@ -191,6 +198,12 @@ async function run() {
 
       const query = { email: email };
       const result = await courseCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    app.get('/course/:id', async(req, res)=>{
+      const id = req.params.id;     
+      const result = await courseCollection.find({_id: new ObjectId(id)}).toArray();
       res.send(result);
     })
 
@@ -219,6 +232,28 @@ async function run() {
       res.send({
         clientSecret: paymentIntent.client_secret
       })
+    })
+
+    // payment api
+    app.post('/payments', verifyJWT, async(req, res)=>{
+      const payment = req.body;
+      const insertResult = await paymentCollection.insertOne(payment);
+
+      const id = payment.course;
+      const query = {_id: new ObjectId(id)};
+      const deleteResult = await courseCollection.deleteOne(query);
+      
+      const updateId = payment.courseId;
+      const updateQuery = {_id: new ObjectId(updateId)};
+      const updateDoc = {
+        $inc: {
+          num_students: +1,
+          available_seats: -1
+        }
+      };
+      const updateResult = await classCollection.updateOne(updateQuery, updateDoc);
+
+      res.send({insertResult, deleteResult, updateResult});
     })
 
     // Send a ping to confirm a successful connection

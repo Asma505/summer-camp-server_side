@@ -165,6 +165,19 @@ async function run() {
       return res.send(result)
     })
 
+    app.patch('/details/:id', async (req, res) => { 
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const sendFeedback = req.body;
+      const feedback = {
+        $set: {
+          feedback: sendFeedback.feedback          
+        }
+      }
+      const result = await classCollection.updateOne(filter, feedback);
+      res.send(result);
+    })
+
     app.patch('/details/approved/:id', async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -235,6 +248,25 @@ async function run() {
       console.log(query);      
       const result = await classCollection.find(query).toArray();
       return res.send(result);
+    })
+
+    app.get('/mycourse/:id', async (req, res) => { 
+      const id = req.params.id;     
+      const result = await classCollection.find({_id: new ObjectId(id)}).toArray();
+      return res.send(result);
+    })
+
+    app.patch('/mycourse/:id', async (req, res) => { 
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const update = req.body;
+      const price = {
+        $set: {
+          price: update.price          
+        }
+      }
+      const result = await classCollection.updateOne(filter, price);
+      res.send(result);
     })
 
     // payment intent

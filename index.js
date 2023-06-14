@@ -77,7 +77,7 @@ async function run() {
 
     app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
-      res.send(result);
+      return res.send(result);
     })
 
 
@@ -89,20 +89,20 @@ async function run() {
         return res.send({ message: 'existing user' })
       }
       const result = await usersCollection.insertOne(user);
-      res.send(result)
+      return res.send(result)
     })
 
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
-        res.send({ admin: false })
+        return res.send({ admin: false })
       }
 
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       const result = { admin: user?.role === 'Admin' }
-      res.send(result);
+      return res.send(result);
     })
 
     app.patch('/users/admin/:id', async (req, res) => {
@@ -114,20 +114,20 @@ async function run() {
         },
       };
       const result = await usersCollection.updateOne(filter, updateDoc);
-      res.send(result);
+      return res.send(result);
     })
 
     app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
-        res.send({ instructor: false })
+        return res.send({ instructor: false })
       }
 
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       const result = { instructor: user?.role === 'Instructor' }
-      res.send(result);
+      return res.send(result);
     })
 
     app.patch('/users/instructor/:id', async (req, res) => {
@@ -139,23 +139,30 @@ async function run() {
         },
       };
       const result = await usersCollection.updateOne(filter, updateDoc);
-      res.send(result);
+      return res.send(result);
     })
 
     // details data api
-    app.get('/details', async (req, res) => {
+    app.get('/details', async (req, res) => {      
       const query = {};
       const options = {
         sort: { "num_students": -1 }
       }
       const result = await classCollection.find(query, options).toArray();
-      res.send(result);
-    })
+      return res.send(result);
+    })   
+    
     
     app.get('/details/:id', async (req, res) => { 
       const id = req.params.id;     
       const result = await classCollection.find({_id: new ObjectId(id)}).toArray();
-      res.send(result);
+      return res.send(result);
+    })
+
+    app.post('/details', async (req, res) => {
+      const course = req.body;      
+      const result = await classCollection.insertOne(course);
+      return res.send(result)
     })
 
     app.patch('/details/approved/:id', async (req, res) => {
@@ -167,7 +174,7 @@ async function run() {
         },
       };
       const result = await classCollection.updateOne(filter, updateDoc);
-      res.send(result);
+      return res.send(result);
     });
 
     app.patch('/details/denied/:id', async (req, res) => {
@@ -179,7 +186,7 @@ async function run() {
         },
       };
       const result = await classCollection.updateOne(filter, updateDoc);
-      res.send(result);
+      return res.send(result);
     })
 
 
@@ -198,27 +205,36 @@ async function run() {
 
       const query = { email: email };
       const result = await courseCollection.find(query).toArray();
-      res.send(result);
+      return res.send(result);
     })
 
     app.get('/course/:id', async(req, res)=>{
       const id = req.params.id;     
       const result = await courseCollection.find({_id: new ObjectId(id)}).toArray();
-      res.send(result);
+      return res.send(result);
     })
 
     app.post('/course', async (req, res) => {
       const selected = req.body;
       console.log(selected);
       const result = await courseCollection.insertOne(selected);
-      res.send(result);
+      return res.send(result);
     })
 
     app.delete('/course/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await courseCollection.deleteOne(query);
-      res.send(result);
+      return res.send(result);
+    })
+
+    // my course api
+    app.get('/mycourse', async (req, res) => {      
+      const email = req.query.email;
+      const query = {email: email};
+      console.log(query);      
+      const result = await classCollection.find(query).toArray();
+      return res.send(result);
     })
 
     // payment intent
@@ -229,12 +245,27 @@ async function run() {
       currency: 'usd',
       payment_method_types: ['card']
       });
-      res.send({
+      return res.send({
         clientSecret: paymentIntent.client_secret
       })
     })
 
     // payment api
+
+    app.get('/payments', verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      if(!email){
+        return res.send([]);
+      }
+      const query = {email: email};
+      const options = {
+        sort: { "date": -1 }
+      }
+      const result = await paymentCollection.find(query, options).toArray();
+      return res.send(result);
+    })
+
+
     app.post('/payments', verifyJWT, async(req, res)=>{
       const payment = req.body;
       const insertResult = await paymentCollection.insertOne(payment);
@@ -253,7 +284,7 @@ async function run() {
       };
       const updateResult = await classCollection.updateOne(updateQuery, updateDoc);
 
-      res.send({insertResult, deleteResult, updateResult});
+      return res.send({insertResult, deleteResult, updateResult});
     })
 
     // Send a ping to confirm a successful connection
@@ -269,7 +300,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-  res.send('summer camp server is running')
+  return res.send('summer camp server is running')
 })
 
 app.listen(port, () => {
